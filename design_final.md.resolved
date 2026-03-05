@@ -1,0 +1,412 @@
+# Design Final — Sistema de Gestão para Restaurante
+
+> Documento gerado via brainstorming estruturado em 05/03/2026.
+> Todas as decisões foram validadas pelo desenvolvedor.
+
+---
+
+## Resumo do Sistema
+
+Sistema completo de gestão para restaurante com arquitetura **local-first**, rodando em Windows. Um único processo FastAPI serve a API, os WebSockets e todos os frontends estáticos. Funciona 100% via rede Wi-Fi local, sem dependência de internet para operar.
+
+**Distribuído como:** `restaurante.exe` (PyInstaller) com ícone na bandeja do Windows.
+
+---
+
+## Premissas Confirmadas
+
+| #   | Premissa                                                                                 |
+| --- | ---------------------------------------------------------------------------------------- |
+| P1  | ~15 mesas, ~3 garçons usando PWA simultaneamente                                         |
+| P2  | PC Windows executa FastAPI + SQLite (servidor local)                                     |
+| P3  | Internet opcional: usada apenas para busca de CEP/CNPJ (graceful degradation)            |
+| P4  | Sem múltiplas filiais                                                                    |
+| P5  | Relatórios com exportação PDF + impressão                                                |
+| P6  | Comandas (financeira e produção) exportáveis em PDF                                      |
+| P7  | Integração TEF e delivery externo (iFood/Rappi): início manual, arquitetura preparada    |
+| P8  | Licença: modo dev agora; módulo `LicencaService` com validação RSA pré-escrita comentada |
+
+---
+
+## Arquitetura Geral
+
+```
+[PC Windows — Servidor]
+  restaurante.exe (PyInstaller)
+    └── FastAPI (uvicorn, porta 8000)
+          ├── /api/*          → REST API
+          ├── /ws/*           → WebSocket
+          ├── /admin/*        → Painel Admin (React build)
+          ├── /garcom/*       → PWA Garçom (React build)
+          ├── /entregador/*   → PWA Entregador (React build)
+          └── /producao/*     → KDS Cozinha/Bar (React build)
+
+[SQLite] ← SQLAlchemy ORM ← FastAPI Services
+[Impressoras em rede] ← TCP socket ESC/POS ← backend/services/impressao.py
+[Backup] → arquivo .db copiado para pasta configurável
+```
+
+**Camadas do Backend:**
+
+```
+HTTP/WS Request
+    → Router (FastAPI + Pydantic)
+    → Service Layer (lógica de negócio)
+    → Repository (SQLAlchemy)
+    → SQLite
+```
+
+---
+
+## Estrutura de Pastas
+
+```
+foodSystem/
+├── backend/
+│   ├── main.py                   ← FastAPI app + tray icon Windows
+│   ├── config.py
+│   ├── database.py               ← SQLAlchemy engine + session
+│   ├── models/                   ← Modelos ORM (uma classe por arquivo)
+│   ├── schemas/                  ← Pydantic schemas
+│   ├── routers/                  ← Endpoints REST por domínio
+│   ├── services/
+│   │   ├── impressao.py          ← ESC/POS via TCP
+│   │   ├── pdf.py                ← reportlab → PDF
+│   │   ├── estoque.py            ← Baixa insumos ao vender
+│   │   ├── notificacoes.py       ← WebSocket manager
+│   │   ├── caixa.py              ← Abertura/fechamento de caixa e sangria
+│   │   ├── backup.py             ← Backup automático + manual
+│   │   ├── licenca.py            ← LicencaService (dev mode + RSA comentado)
+│   │   ├── nfe_parser.py         ← Parser XML NF-e
+│   │   └── cep_cnpj.py           ← Consulta ViaCEP + BrasilAPI
+│   ├── websocket/
+│   │   └── manager.py
+│   ├── static/                   ← Builds dos frontends
+│   │   ├── admin/
+│   │   ├── garcom/
+│   │   ├── entregador/
+│   │   └── producao/
+│   └── data/
+│       └── restaurante.db
+│
+├── frontend-admin/
+├── pwa-garcom/
+├── pwa-entregador/
+├── tela-producao/
+│
+├── scripts/
+│   ├── build-all.ps1             ← Compila todos os frontends + copia builds
+│   └── gerar_licenca.py          ← Gerador de chaves RSA (uso futuro)
+└── restaurante.spec              ← Configuração PyInstaller
+```
+
+---
+
+## Modelo de Banco de Dados
+
+### Autenticação e Usuários
+
+| Tabela     | Colunas principais                            |
+| ---------- | --------------------------------------------- |
+| `usuarios` | id, nome, email, senha_hash, pin, role, ativo |
+
+`role` = admin \| caixa \| garcom \| entregador \| cozinha
+
+### Cardápio
+
+| Tabela               | Colunas principais                                                     |
+| -------------------- | ---------------------------------------------------------------------- |
+| `categorias`         | id, nome, ordem, ativo                                                 |
+| `locais_producao`    | id, nome, ativo _(pré-cadastrado: Cozinha, Bar, Nenhum)_               |
+| `produtos`           | id, nome, categoria_id, preco, tempo_preparo, ativo, local_producao_id |
+| `adicionais`         | id, nome, preco, ativo                                                 |
+| `produto_adicionais` | produto_id, adicional_id _(m:n)_                                       |
+| `tipo_bordas`        | id, nome, preco_extra                                                  |
+
+### Receitas e Estoque
+
+| Tabela             | Colunas principais                                                                            |
+| ------------------ | --------------------------------------------------------------------------------------------- |
+| `insumos`          | id, nome, unidade, estoque_atual, estoque_minimo                                              |
+| `receitas`         | id, produto_id, insumo_id, quantidade                                                         |
+| `entradas_estoque` | id, insumo_id, fornecedor_id, quantidade, custo_unitario, data, usuario_id, nfe_id (nullable) |
+
+### Pedidos
+
+| Tabela            | Colunas principais                                                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `mesas`           | id, numero, capacidade, status                                                                                                  |
+| `clientes`        | id, nome, telefone, endereco, bairro, cidade                                                                                    |
+| `pedidos`         | id, tipo, status, cliente_id, mesa_id, usuario_id, valor_total, desconto, data_hora, observacao, forma_fechamento               |
+| `itens_pedido`    | id, pedido_id, produto_id, quantidade, preco_unitario, observacao, borda_id                                                     |
+| `item_adicionais` | item_id, adicional_id, quantidade                                                                                               |
+| `delivery_info`   | pedido_id, endereco, bairro, cidade, telefone, taxa_entrega_id, status_pagamento                                                |
+| `pedido_pagamentos` | id, pedido_id, forma_pagamento_id, valor _(suporta múltiplas formas por pedido)_                                              |
+
+`tipo pedido` = mesa \| delivery \| retirada  
+`status pedido` = novo \| enviado \| preparando \| pronto \| entregue \| cancelado  
+`status pagamento` = pendente \| pago  
+`forma_fechamento` = pago \| fiado
+
+### Entregas
+
+| Tabela         | Colunas principais                                             |
+| -------------- | -------------------------------------------------------------- |
+| `entregadores` | id, nome, telefone, ativo                                      |
+| `entregas`     | id, pedido_id, entregador_id, hora_saida, hora_entrega, status |
+
+### Financeiro
+
+| Tabela               | Colunas principais                                                                                       |
+| -------------------- | -------------------------------------------------------------------------------------------------------- |
+| `formas_pagamento`   | id, nome, ativo, tipo_tef _(pré-cadastrado: Dinheiro, PIX, Crédito, Débito)_                             |
+| `taxas_entrega`      | id, bairro, valor                                                                                        |
+| `contas_pagar`       | id, fornecedor_id, nfe_id, descricao, valor, data_vencimento, data_pagamento, status, forma_pagamento_id |
+| `caixas`             | id, usuario_id, data_abertura, fundo_inicial, data_fechamento, total_esperado, total_contado, status     |
+| `sangrias`           | id, caixa_id, usuario_id, valor, motivo, data_hora                                                       |
+| `audit_log`          | id, usuario_id, acao, tabela, registro_id, detalhe, data_hora                                            |
+
+> **Fiado/Aba:** gerenciado via `pedidos.forma_fechamento = 'fiado'`. A tela "Contas em Aberto" filtra pedidos com `forma_fechamento = fiado` e `status_pagamento = pendente`, agrupados por cliente.
+
+### Fornecedores e NF-e
+
+| Tabela            | Colunas principais                                                                                   |
+| ----------------- | ---------------------------------------------------------------------------------------------------- |
+| `fornecedores`    | id, nome, telefone, email, cnpj, ativo                                                               |
+| `nfe_importacoes` | id, fornecedor_id, numero_nf, serie, chave_acesso, data_emissao, valor_total, xml_path, importado_em |
+
+### Infraestrutura
+
+| Tabela          | Colunas principais                                          |
+| --------------- | ----------------------------------------------------------- |
+| `impressoras`   | id, nome, ip, porta, setor, tipo_papel, ativo               |
+| `configuracoes` | chave, valor _(dados do restaurante, horário backup, etc.)_ |
+
+`tipo_papel` = termica_80mm \| termica_58mm \| a4_rede \| a4_local  
+`setor` = cozinha \| bar \| caixa \| personalizado
+
+---
+
+## API REST — Grupos de Endpoints
+
+```
+/api/auth              → login (JWT/PIN), logout, /me
+/api/usuarios          → CRUD
+/api/categorias        → CRUD
+/api/produtos          → CRUD
+/api/adicionais        → CRUD
+/api/tipo-bordas       → CRUD
+/api/locais-producao   → CRUD (cadastrável)
+/api/formas-pagamento  → CRUD (cadastrável)
+/api/insumos           → CRUD + saldo
+/api/receitas          → CRUD por produto
+/api/mesas             → CRUD + status
+/api/clientes          → CRUD + busca CEP + contas em aberto (fiado)
+/api/fornecedores      → CRUD + busca CNPJ
+/api/entregadores      → CRUD
+/api/taxas-entrega     → CRUD
+/api/impressoras       → CRUD + teste conexão
+/api/pedidos           → CRUD + fechar (pago/fiado) + dividir + cancelar
+/api/pedido-pagamentos → registrar pagamento misto
+/api/entregas          → CRUD + atualizar status
+/api/estoque           → posição + entrada manual + upload NF-e XML
+/api/financeiro        → contas-pagar + contas-em-aberto (fiado)
+/api/caixa             → abrir + sangria + fechar + histórico
+/api/relatorios        → 10 relatórios + exportar PDF
+/api/backup            → gerar + listar + download
+/api/configuracoes     → dados restaurante + settings
+/api/licenca           → status (sempre ativo em modo dev)
+```
+
+---
+
+## WebSocket — Canais
+
+```
+ws://IP:8000/ws/{canal}
+```
+
+| Canal         | Assinantes      | Emissores     | Evento                  |
+| ------------- | --------------- | ------------- | ----------------------- |
+| `pedidos`     | KDS cozinha/bar | Backend       | Novo pedido             |
+| `garcom/{id}` | PWA Garçom      | KDS / Backend | Pedido pronto + atraso  |
+| `caixa`       | Admin / Caixa   | Backend       | Fechamento solicitado   |
+| `entregador`  | PWA Entregador  | Backend       | Nova entrega disponível |
+| `mesas`       | Admin           | Backend       | Status de mesa          |
+| `admin`       | Admin           | Backend       | Alerta estoque mínimo   |
+
+---
+
+## Frontends
+
+| App            | URL                       | Perfil       | Tech               |
+| -------------- | ------------------------- | ------------ | ------------------ |
+| Painel Admin   | `/admin`                  | admin, caixa | React + Vite       |
+| PWA Garçom     | `/garcom`                 | garcom       | React + Vite + PWA |
+| PWA Entregador | `/entregador`             | entregador   | React + Vite + PWA |
+| KDS Produção   | `/producao?setor=cozinha` | cozinha/bar  | React + Vite       |
+
+### Alerta de Atraso (KDS + Admin + Garçom)
+
+- Baseado em `tempo_preparo` dos produtos
+- Card amarelo quando >80% do tempo estimado
+- Card vermelho pulsando + timer quando atrasado
+- Visível no KDS, no painel admin e no PWA do garçom
+
+### Fila Offline no PWA (Service Worker)
+
+- Se a conexão Wi-Fi cair momentaneamente, o PWA do garçom enfileira as ações localmente via Service Worker
+- Ao reconectar, sincroniza automaticamente com o backend
+- Garante que nenhum pedido seja perdido por micro-drops de sinal
+
+---
+
+## Impressão
+
+### Fluxo ESC/POS
+
+Pedido enviado → backend agrupa itens por `local_producao` → socket TCP para impressora do setor → comanda financeira para caixa simultaneamente.
+
+### Tipos de Comanda
+
+| Comanda    | Destino          | Conteúdo                                              |
+| ---------- | ---------------- | ----------------------------------------------------- |
+| Produção   | Cozinha / Bar    | Sem preços, só itens do setor, obs, adicionais, borda |
+| Financeira | Caixa / Delivery | Itens, preços, taxa, total, forma de pagamento        |
+
+### Configuração de Impressoras
+
+- Cada impressora tem: nome, IP, porta, setor, tipo_papel
+- Tipos: térmica 80mm, térmica 58mm, A4 em rede (IPP), A4 local (browser)
+- Por tipo de documento (relatorio, comanda) → impressora padrão configurável
+
+### PDF (reportlab)
+
+- Geração de PDF puramente em Python com `reportlab`
+- Mais simples de empacotar com PyInstaller (sem dependências nativas)
+- Templates por tipo de documento: relatórios, comandas, comprovante de caixa
+- Cabeçalho automático com dados do restaurante (nome, CNPJ, endereço, logo)
+
+---
+
+## Empacotamento .exe
+
+```
+scripts/build-all.ps1
+  → Compila os 4 frontends React
+  → Copia builds para backend/static/
+  → pyinstaller restaurante.spec → restaurante.exe
+```
+
+**Startup:** tray icon Windows (`pystray`), menu com Abrir painel / Ver logs / Encerrar.  
+**Auto-inicialização:** registra no `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (configurável no painel).  
+**Backup automático:** agendador interno Python (`schedule`) — todo dia às 3h, copia `restaurante.db` para pasta de backup.
+
+---
+
+## Integrações Externas
+
+| Integração     | Status              | API                                                        |
+| -------------- | ------------------- | ---------------------------------------------------------- |
+| Busca CEP      | Ativo (online only) | ViaCEP — graceful degradation offline                      |
+| Busca CNPJ     | Ativo (online only) | BrasilAPI — graceful degradation offline                   |
+| TEF/Maquininha | Futuro              | Ponto de extensão em `formas_pagamento.tipo_tef`           |
+| iFood/Rappi    | Futuro              | Ponto de extensão no módulo de pedidos delivery            |
+| Licença RSA    | Futuro              | `LicencaService.verificar()` — código comentado no arquivo |
+
+---
+
+## Decision Log
+
+| #   | Decisão                                                              | Alternativas consideradas               | Motivo da escolha                                         |
+| --- | -------------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------- |
+| D1  | Abordagem: Planejamento completo antes de implementar                | Implementar por partes sem planejamento | Escopo grande, evitar retrabalho                                          |
+| D2  | Impressoras em rede (IP + TCP)                                       | USB direto, Bluetooth                   | Flexibilidade de posicionamento no restaurante                            |
+| D3  | Autenticação mista: JWT para admin/caixa, PIN para garçom/entregador | Só JWT, sem auth                        | PIN é mais prático em tela touch, menor fricção                           |
+| D4  | Cardápio único + descontos manuais                                   | Múltiplos cardápios por horário         | Sem necessidade de turnos no restaurante                                  |
+| D5  | Apenas o caixa fecha a conta                                         | Garçom também poderia fechar            | Controle financeiro centralizado no caixa                                 |
+| D6  | Divisão de conta: simples (÷N) e por item                            | Só um modo                              | Flexibilidade conforme preferência do cliente                             |
+| D7  | TEF/Maquininha: manual + ponto de extensão futuro                    | Integração TEF agora                    | Complexidade desnecessária no início                                      |
+| D8  | KDS responsivo: monitor e tablet                                     | Só monitor                              | Flexível para diferentes layouts de cozinha                               |
+| D9  | Backup: automático diário (3h) + manual                              | Só manual                               | Proteção automática sem depender do operador                              |
+| D10 | Impressoras configuráveis pelo admin                                 | Fixas no código                         | Flexibilidade para diferentes instalações                                 |
+| D11 | KDS interativo: cozinha marca pronto → WS notifica garçom            | Só visualização                         | Elimina garçom vendendo ao caixa buscar após preparo                      |
+| D12 | Arquitetura: Monolito FastAPI único                                  | API + nginx separados, Electron         | Simples, 1 processo, sem deps externas no Windows                         |
+| D13 | Distribuição: PyInstaller .exe + tray icon                           | Serviço Windows, Electron               | Fácil para operador, sem instalar Python                                  |
+| D14 | Entrada de estoque: manual + XML NF-e                                | Só manual                               | Valor alto: importar NF-e lança contas a pagar automático                 |
+| D15 | Módulo financeiro: contas a pagar + fiado (aba por cliente)          | AR completo, sem fiado                  | Fiado cobre 100% do caso de uso real, mais simples que AR completo        |
+| D16 | Locais de produção e formas de pagamento: cadastráveis               | Enum fixo                               | Extensibilidade sem mudar código                                          |
+| D17 | Busca CEP (ViaCEP) e CNPJ (BrasilAPI)                                | Sem busca automática                    | UX melhor, sem bloquear offline                                           |
+| D18 | Alerta visual de atraso no KDS                                       | Sem controle de tempo                   | Gestão de qualidade do preparo                                            |
+| D19 | Dados do restaurante em `configuracoes`                              | Hardcoded                               | Necessário para cabeçalho de impressões e PDFs                            |
+| D20 | PDF com reportlab (não WeasyPrint)                                   | WeasyPrint, fpdf                        | reportlab sem deps nativas — empacotamento PyInstaller muito mais simples |
+| D21 | Licença: modo dev agora, RSA pré-escrito comentado                   | Sem módulo de licença                   | Facilita comercialização futura sem refatorar                             |
+| D22 | PDF: relatórios + comandas exportáveis                               | Só tela                                 | Requisito claro do restaurante                                            |
+| D23 | Abertura/fechamento de caixa com sangria e fundo                     | Sem controle de caixa                   | Essencial para operação financeira do restaurante                         |
+| D24 | Pagamento misto por pedido (tabela pedido_pagamentos)                | Uma forma de pagamento apenas           | Clientes frequentemente pagam parte dinheiro, parte PIX/cartão            |
+| D25 | Fila offline com Service Worker no PWA do garçom                     | PWA sem offline                         | Rede local pode ter micro-drops; nenhum pedido pode ser perdido           |
+| D26 | Audit log (`audit_log`) para ações críticas                          | Sem rastreamento                        | Permite auditar cancelamentos, descontos e exclusões suspeitas            |
+| D27 | Sem Alembic — usar `Base.metadata.create_all()` no startup           | Alembic para migrations                 | SQLite local não precisa de migrations; Alembic adicionaria complexidade  |
+
+---
+
+## Plano de Implementação — 6 Fases
+
+### Fase 1 — Fundação Backend (Semana 1–2)
+
+- Setup do projeto Python: FastAPI, SQLAlchemy (sem Alembic — `create_all()` no startup)
+- Modelos SQLAlchemy de todas as tabelas
+- Autenticação JWT + PIN
+- `LicencaService` (modo dev + RSA comentado)
+- Endpoints CRUD: usuários, categorias, produtos, adicionais, bordas, insumos, mesas, clientes, fornecedores, entregadores, taxas, formas de pagamento, locais de produção, impressoras
+- Configurações do restaurante
+- `audit_log` registrado em ações críticas
+- Servir frontends estáticos
+
+### Fase 2 — Pedidos e Fluxo Core (Semana 3–4)
+
+- Endpoints de pedidos (criar, atualizar status, cancelar com audit_log)
+- Itens do pedido + adicionais + borda
+- Lógica de baixa de estoque por receitas
+- Pagamento misto (`pedido_pagamentos`)
+- Fiado/aba por cliente (`forma_fechamento = fiado`)
+- Tela "Contas em Aberto" filtrada por cliente
+- Abertura e fechamento de caixa + sangrias
+- Delivery info
+- Entregas
+- Divisão de conta (simples e por item)
+- Descontos manuais
+
+### Fase 3 — Tempo Real e Impressão (Semana 5)
+
+- WebSocket `ConnectionManager` com todos os canais
+- Impressão ESC/POS via TCP socket (`python-escpos`)
+- Templates de comanda de produção e financeira
+- Lógica de roteamento por setor/impressora
+- Alerta de atraso (cálculo + WS)
+- Backup automático (`schedule`) + manual
+
+### Fase 4 — Financeiro, Estoque e NF-e (Semana 6)
+
+- Parser XML NF-e (`xml.etree`)
+- Entrada de estoque via NF-e → lança contas a pagar
+- Contas a pagar e a receber (CRUD completo)
+- Busca CEP (ViaCEP) e CNPJ (BrasilAPI) com graceful degradation
+- Alertas de estoque mínimo
+
+### Fase 5 — Frontends (Semana 7–10)
+
+- **Painel Admin:** todos os módulos com design premium, incluindo tela de caixa e contas em aberto
+- **PWA Garçom:** fluxo completo de pedido + notificações + fila offline (Service Worker)
+- **PWA Entregador:** fila + aceitar + marcar entrega
+- **KDS:** cards responsivos + cores por status + atraso + som
+
+### Fase 6 — Relatórios, PDF e Empacotamento (Semana 11–12)
+
+- 10 relatórios no painel admin (+ relatório de caixa, fiado por cliente)
+- Geração de PDF com `reportlab` (relatórios + comandas + fechamento de caixa)
+- Impressão A4 (browser + IPP)
+- PyInstaller: `.spec` + `build-all.ps1`
+- Tray icon Windows (`pystray`)
+- Auto-inicialização no Windows
+- Testes de integração e ajustes finais
