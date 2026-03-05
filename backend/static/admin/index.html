@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Administrativo - SolidMenu</title>
+    
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#07355b">
+    <link rel="stylesheet" href="css/style.css">
+    
+    <style>
+        /* Small layout tweaks moved to style.css, keeping only dynamic ones here */
+        .welcome-card {
+            background-color: var(--bg-surface);
+            padding: 3rem;
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
+            text-align: center;
+            max-width: 600px;
+            border: 1px solid var(--border-color);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="shell-container">
+        <!-- Sidebar Base -->
+        <nav class="sidebar">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <img src="assets/logo.png" alt="SolidMenu Logo" style="width: 100%; max-width: 150px;" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='block';">
+                <h2 id="logoFallback" style="display: none; color: var(--brand-primary); letter-spacing: -0.5px; font-size: 1.2rem;">SOLID<span style="color: var(--brand-accent);">MENU</span></h2>
+            </div>
+            
+            <a href="#" class="btn" data-route="dashboard" style="margin-bottom: 0.5rem; justify-content: flex-start; color: var(--text-on-surface); font-size: 0.9rem; gap: 0.75rem;">
+                📊 Dashboard
+            </a>
+            <a href="#" class="btn" data-route="cardapio" style="margin-bottom: 0.5rem; justify-content: flex-start; color: var(--text-on-surface); font-size: 0.9rem; gap: 0.75rem;">
+                🍔 Cardápio
+            </a>
+            
+            <button onclick="logout()" class="btn" style="margin-top: auto; border: 1px solid var(--border-color); background: transparent; color: var(--error); font-size: 0.85rem;">
+                Sair do Sistema
+            </button>
+        </nav>
+
+        <!-- Main Wrapper with Topbar -->
+        <div class="main-wrapper">
+            <header class="topbar">
+                <div class="user-info">
+                    <div id="userAvatar" class="user-avatar">?</div>
+                    <div class="user-details">
+                        <span id="userName" class="user-name">Carregando...</span>
+                        <span id="userRole" class="user-role">Usuário</span>
+                    </div>
+                </div>
+                
+                <button id="themeToggle" class="topbar-theme-toggle" aria-label="Alternar tema">
+                    <svg id="themeIcon" viewBox="0 0 24 24"><path d="M12 21A9 9 0 1 1 21 12A9 9 0 0 1 12 21M12 4V20A8 8 0 1 0 12 4Z"/></svg>
+                </button>
+            </header>
+
+            <main id="main-content" class="main-content">
+                <!-- O router.js vai injetar o HTML das views aqui! -->
+            </main>
+        </div>
+    </div>
+
+    <!-- PWA & Scripts -->
+    <script type="module" src="js/theme.js"></script>
+    <script type="module" src="js/router.js"></script>
+    <script>
+        // Proteção de Rota - Se não tem token, volta pro login
+        if (!localStorage.getItem('solidmenu_token')) {
+            window.location.href = 'login.html';
+        }
+
+        // Exibe Dados do Usuário na Topbar
+        const userJson = localStorage.getItem('solidmenu_user');
+        if (userJson) {
+            const user = JSON.parse(userJson);
+            const userNameEl = document.getElementById('userName');
+            const userRoleEl = document.getElementById('userRole');
+            const userAvatarEl = document.getElementById('userAvatar');
+            
+            if (userNameEl) userNameEl.textContent = user.full_name || user.username || 'Usuário';
+            if (userRoleEl) userRoleEl.textContent = user.is_admin ? 'Administrador' : 'Operador';
+            if (userAvatarEl) {
+                const initial = (user.full_name || user.username || '?').charAt(0).toUpperCase();
+                userAvatarEl.textContent = initial;
+            }
+        }
+
+        // Função Global de Logout
+        window.logout = function() {
+            localStorage.removeItem('solidmenu_token');
+            localStorage.removeItem('solidmenu_user');
+            window.location.href = 'login.html';
+        };
+
+        // Registra Service Worker para PWA Install Prompt e Cache
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('SolidMenu SW Registrado - PWA Pronto.', reg.scope))
+                    .catch(err => console.error('Erro no SW do SolidMenu:', err));
+            });
+        }
+    </script>
+</body>
+</html>

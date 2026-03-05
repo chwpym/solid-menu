@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - SolidMenu</title>
+    <!-- Configurações PWA -->
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#07355B" />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <!-- Botão de Theme Toggle -->
+    <div class="theme-switch-wrapper">
+      <button
+        id="themeToggle"
+        class="theme-switch-btn"
+        aria-label="Alternar tema"
+      >
+        <!-- SVG dinamico manipulado no script -->
+        <svg id="themeIcon" viewBox="0 0 24 24">
+          <path
+            d="M12 21A9 9 0 1 1 21 12A9 9 0 0 1 12 21M12 4V20A8 8 0 1 0 12 4Z"
+          />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Login Container Principal -->
+    <div class="login-container">
+      <div class="login-card">
+        <div class="login-header">
+          <!-- Fallback se não tiver a logo ainda, exibiremos um texto. Se a logo existir, carregará normalmente. -->
+          <img
+            src="assets/logo.png"
+            alt="SolidMenu Logo"
+            class="login-logo"
+            onerror="
+              this.style.display = 'none';
+              document.getElementById('logoFallback').style.display = 'block';
+            "
+          />
+          <h1
+            id="logoFallback"
+            style="
+              display: none;
+              color: var(--brand-primary);
+              font-weight: 800;
+              font-size: 2rem;
+              letter-spacing: -1px;
+              margin-bottom: 0.5rem;
+            "
+          >
+            SOLID<span style="color: var(--brand-accent)">MENU</span>
+          </h1>
+          <p>Gestão Local-First de Restaurantes</p>
+        </div>
+
+        <!-- Alerta de Erro -->
+        <div id="errorAlert" class="alert alert-error">
+          Email ou senha incorretos!
+        </div>
+
+        <form id="loginForm">
+          <div class="form-group">
+            <label for="email">E-mail corporativo</label>
+            <input
+              type="email"
+              id="email"
+              class="form-control"
+              autocomplete="email"
+              required
+              placeholder="admin@sistema.com"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="senha">Senha</label>
+            <input
+              type="password"
+              id="senha"
+              class="form-control"
+              autocomplete="current-password"
+              required
+              placeholder="••••••••"
+            />
+          </div>
+
+          <button
+            type="submit"
+            id="btnSubmit"
+            class="btn btn-primary"
+            style="width: 100%; margin-top: 1rem"
+          >
+            Acessar Painel
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Scripts Modulares -->
+    <script type="module" src="js/theme.js"></script>
+    <script type="module" src="js/auth.js"></script>
+
+    <script>
+      // Redirect imediato se já estiver logado
+      if (localStorage.getItem("solidmenu_token")) {
+        window.location.href = "index.html";
+      }
+
+      // Registra Service Worker para Cache e Instalação PWA
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("sw.js")
+            .catch((err) => console.error("SW Error:", err));
+        });
+      }
+    </script>
+  </body>
+</html>

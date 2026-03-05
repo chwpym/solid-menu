@@ -94,8 +94,8 @@ class ProdutoUpdate(ProdutoBase):
 
 class ProdutoResponse(ProdutoBase):
     id: int
-    categoria: CategoriaResponse
-    local_producao: LocalProducaoResponse
+    categoria: Optional[CategoriaResponse] = None
+    local_producao: Optional[LocalProducaoResponse] = None
     adicionais: List[AdicionalResponse] = []
 
     class Config:

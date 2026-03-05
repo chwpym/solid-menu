@@ -1,0 +1,381 @@
+/* 
+ * SolidMenu - Design System & CSS Variables
+ * HSL approach for easy Light/Dark modes.
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+:root {
+  /* Cores da Logo (Base HSL) */
+  /* Navy Blue (SOLID) - #07355B ≈ 207, 86%, 19% */
+  --brand-primary-h: 207;
+  --brand-primary-s: 86%;
+  --brand-primary-l: 19%;
+  --brand-primary: hsl(
+    var(--brand-primary-h),
+    var(--brand-primary-s),
+    var(--brand-primary-l)
+  );
+
+  --sidebar-width: 220px;
+  --topbar-height: 70px;
+  --brand-accent: hsl(
+    var(--brand-accent-h),
+    var(--brand-accent-s),
+    var(--brand-accent-l)
+  );
+
+  /* Light Mode Default Theme Variables */
+  --bg-base: hsl(210, 20%, 98%);
+  --bg-surface: hsl(0, 0%, 100%);
+  --bg-surface-hover: hsl(210, 20%, 95%);
+
+  --text-on-base: hsl(210, 20%, 15%);
+  --text-on-surface: hsl(210, 20%, 25%);
+  --text-muted: hsl(210, 10%, 45%);
+
+  --border-color: hsl(210, 15%, 85%);
+  --focus-ring: hsla(
+    var(--brand-primary-h),
+    var(--brand-primary-s),
+    var(--brand-primary-l),
+    0.3
+  );
+
+  /* State Colors */
+  --error: hsl(0, 70%, 50%);
+  --success: hsl(120, 60%, 40%);
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="dark"] {
+  /* Dark Mode Overrides */
+  --bg-base: hsl(220, 20%, 10%);
+  --bg-surface: hsl(220, 20%, 14%);
+  --bg-surface-hover: hsl(220, 20%, 18%);
+
+  --text-on-base: hsl(0, 0%, 95%);
+  --text-on-surface: hsl(0, 0%, 90%);
+  --text-muted: hsl(210, 15%, 65%);
+
+  --border-color: hsl(220, 20%, 20%);
+
+  /* In Dark Mode, we might want the primary brand to be slightly lighter for contrast */
+  --brand-primary-l: 30%;
+  --Brand-accent-l: 50%;
+}
+
+/* Base Reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-on-base);
+  font-family: "Inter", sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition:
+    background-color var(--transition),
+    color var(--transition);
+}
+
+a {
+  color: var(--brand-primary);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+a:hover {
+  color: var(--brand-accent);
+}
+
+/* Form Elements */
+.form-group {
+  margin-bottom: 1.25rem;
+}
+.form-group label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  color: var(--text-on-surface);
+}
+.form-control {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  font-family: inherit;
+  color: var(--text-on-base);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition:
+    border-color var(--transition),
+    box-shadow var(--transition);
+}
+.form-control:focus {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  transition: all var(--transition);
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background-color: var(--brand-primary);
+  color: white;
+}
+.btn-primary:not(:disabled):hover {
+  background-color: hsl(
+    var(--brand-primary-h),
+    var(--brand-primary-s),
+    calc(var(--brand-primary-l) - 5%)
+  );
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+.btn-primary:not(:disabled):active {
+  transform: translateY(0);
+}
+
+/* Login Page Layout */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.login-card {
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 420px;
+  padding: 2.5rem 2rem;
+  border: 1px solid var(--border-color);
+}
+.login-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+.login-logo {
+  width: 250px;
+  height: auto;
+  margin-bottom: 1rem;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  /* Ajusta brilho/contraste no dark mode se a logo for escura - opcional se usar png transparente com texto claro */
+}
+[data-theme="dark"] .login-logo {
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.1));
+}
+.login-header p {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+/* Theme Switcher Header Integrated */
+.alert {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: none;
+}
+.alert-error {
+  background-color: hsla(0, 70%, 50%, 0.1);
+  color: var(--error);
+  border: 1px solid hsla(0, 70%, 50%, 0.2);
+}
+.alert.show {
+  display: block;
+  animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Modais (Dialogs) */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.5);
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity var(--transition);
+  backdrop-filter: blur(2px);
+}
+.modal-overlay.active {
+  display: flex;
+  opacity: 1;
+}
+.shell-container {
+  display: flex;
+  min-height: 100vh;
+}
+.sidebar {
+  width: var(--sidebar-width);
+  background-color: var(--bg-surface);
+  border-right: 1px solid var(--border-color);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 100;
+  transition: width var(--transition);
+}
+.main-wrapper {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.topbar {
+  height: var(--topbar-height);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 2rem;
+  gap: 1.5rem;
+  position: sticky;
+  top: 0;
+  z-index: 90;
+}
+.main-content {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-on-surface);
+  font-size: 0.9rem;
+}
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  background: var(--brand-primary);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+.user-details {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.user-name {
+  font-weight: 600;
+}
+.user-role {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.topbar-theme-toggle {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-on-base);
+  border-radius: var(--radius-md);
+  padding: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+.topbar-theme-toggle:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--brand-primary);
+}
+.topbar-theme-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+.modal-content {
+  background: var(--bg-surface);
+  padding: 2rem;
+  border-radius: var(--radius-xl);
+  width: 100%; max-width: 500px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-color);
+  transform: scale(0.95);
+  transition: transform var(--transition);
+}
+.modal-overlay.active .modal-content {
+  transform: scale(1);
+}
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 1.5rem;
+}
+.modal-header h2 { color: var(--text-on-base); font-size: 1.5rem; }
+.btn-close {
+  background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);
+}
+.btn-close:hover { color: var(--error); }
+.form-row {
+  display: flex; gap: 1rem;
+}
+.form-row > .form-group {
+  flex: 1;
+}

@@ -1,0 +1,134 @@
+<div class="view-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; width: 100%;">
+    <div>
+        <h1 style="color: var(--brand-primary);">Cardápio</h1>
+        <p style="color: var(--text-muted);">Gerencie seus produtos, adicionais e categorias</p>
+    </div>
+    <div>
+        <button id="btnOpenModalProduto" class="btn btn-primary" style="display: block;">+ Novo Produto</button>
+        <button id="btnOpenModalCategoria" class="btn btn-primary" style="display: none;">+ Nova Categoria</button>
+        <button id="btnOpenModalAdicional" class="btn btn-primary" style="display: none;">+ Novo Adicional</button>
+    </div>
+</div>
+
+<!-- Tabs de Navegação Interna -->
+<div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); margin-bottom: 1.5rem; width: 100%; gap: 1rem; flex-wrap: wrap;">
+    <div style="display: flex; gap: 1rem;">
+        <button class="tab-btn active" data-target="produtos_container" style="padding: 0.75rem 1rem; background: transparent; border: none; border-bottom: 2px solid var(--brand-primary); color: var(--brand-primary); font-weight: 600; cursor: pointer;">Produtos</button>
+        <button class="tab-btn" data-target="categorias_container" style="padding: 0.75rem 1rem; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--text-muted); font-weight: 600; cursor: pointer;">Categorias</button>
+        <button class="tab-btn" data-target="adicionais_container" style="padding: 0.75rem 1rem; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--text-muted); font-weight: 600; cursor: pointer;">Adicionais</button>
+    </div>
+    
+    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <select id="filtroCategoria" onchange="window.carregarProdutos && window.carregarProdutos()" class="form-control" style="width: 150px; padding: 0.4rem; font-size: 0.9rem;">
+            <option value="todas">Todas Categorias</option>
+            <!-- Preenchido via JS -->
+        </select>
+        
+        <div style="display: flex; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;">
+            <button onclick="window.setViewMode('list')" id="btnViewList" class="btn" style="padding: 0.4rem 0.8rem; background: var(--border-color); border-radius: 0; border: none; color: var(--text-on-base);">≡ Lista</button>
+            <button onclick="window.setViewMode('card')" id="btnViewCard" class="btn" style="padding: 0.4rem 0.8rem; background: transparent; border-radius: 0; border: none; border-left: 1px solid var(--border-color); color: var(--text-muted);">⊞ Cards</button>
+        </div>
+
+        <label style="color: var(--text-muted); font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; white-space: nowrap;">
+            <input type="checkbox" id="checkShowInativos" onchange="window.recarregarAbaAtual()" style="accent-color: var(--brand-primary);">
+            Mostrar Inativos
+        </label>
+    </div>
+</div>
+
+<!-- Recipiente de Produtos -->
+<div id="produtos_container" class="tab-content active" style="width: 100%;">
+    <div style="padding: 2rem; text-align: center; color: var(--text-muted);">Carregando produtos...</div>
+</div>
+
+<!-- Recipiente de Categorias -->
+<div id="categorias_container" class="tab-content" style="width: 100%; display: none;">
+    <div style="padding: 2rem; text-align: center; color: var(--text-muted);">Carregando categorias...</div>
+</div>
+
+<!-- Recipiente de Adicionais -->
+<div id="adicionais_container" class="tab-content" style="width: 100%; display: none;">
+    <div style="padding: 2rem; text-align: center; color: var(--text-muted);">Carregando adicionais...</div>
+</div>
+
+<!-- Modal Novo Produto -->
+<div id="modalProduto" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Novo Produto</h2>
+            <button id="btnCloseModalProduto" class="btn-close">&times;</button>
+        </div>
+        <form id="formNovoProduto">
+            <div class="form-group">
+                <label>Nome do Produto</label>
+                <input type="text" id="prodNome" class="form-control" required placeholder="Ex: Pizza Calabresa">
+            </div>
+            <div class="form-group">
+                <label>Descrição</label>
+                <input type="text" id="prodDescricao" class="form-control" placeholder="Ingredientes e detalhes...">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Preço Venda (R$)</label>
+                    <input type="number" id="prodPreco" class="form-control" step="0.01" required placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Categoria</label>
+                    <select id="prodCategoria_modal" class="form-control" required>
+                        <!-- Carregado via JS -->
+                    </select>
+                </div>
+            </div>
+            <div style="display:flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                <button type="button" id="btnCancelModalProduto" class="btn" style="border: 1px solid var(--border-color); color: var(--text-muted);">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar Produto</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Nova Categoria -->
+<div id="modalCategoria" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Nova Categoria</h2>
+            <button id="btnCloseModalCategoria" class="btn-close">&times;</button>
+        </div>
+        <form id="formNovaCategoria">
+            <div class="form-group">
+                <label>Nome da Categoria</label>
+                <input type="text" id="catNome" class="form-control" required placeholder="Ex: Bebidas">
+            </div>
+            <div style="display:flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                <button type="button" id="btnCancelModalCategoria" class="btn" style="border: 1px solid var(--border-color); color: var(--text-muted);">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar Categoria</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Novo Adicional -->
+<div id="modalAdicional" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Novo Adicional</h2>
+            <button id="btnCloseModalAdicional" class="btn-close">&times;</button>
+        </div>
+        <form id="formNovoAdicional">
+            <div class="form-group">
+                <label>Nome do Adicional</label>
+                <input type="text" id="addNome" class="form-control" required placeholder="Ex: Queijo Extra">
+            </div>
+            <div class="form-group">
+                <label>Preço (R$)</label>
+                <input type="number" id="addPreco" class="form-control" step="0.01" required placeholder="0.00">
+            </div>
+            <div style="display:flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                <button type="button" id="btnCancelModalAdicional" class="btn" style="border: 1px solid var(--border-color); color: var(--text-muted);">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar Adicional</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+

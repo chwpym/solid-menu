@@ -27,8 +27,11 @@ router = APIRouter(prefix="/api", tags=["Cardapio"])
 # CATEGORIAS
 # ==========================================
 @router.get("/categorias", response_model=List[CategoriaResponse])
-def listar_categorias(db: Session = Depends(get_db)):
-    return db.query(Categoria).order_by(Categoria.ordem).all()
+def listar_categorias(inativos: bool = False, db: Session = Depends(get_db)):
+    query = db.query(Categoria)
+    if not inativos:
+        query = query.filter(Categoria.ativo == True)
+    return query.order_by(Categoria.ordem).all()
 
 
 @router.post(
@@ -70,18 +73,30 @@ def remover_categoria(cat_id: int, db: Session = Depends(get_db)):
     if not db_cat:
         raise HTTPException(status_code=404, detail="Não encontrado")
 
-    # Inativa ao invés de deletar para manter integridade
     db_cat.ativo = False
     db.commit()
     return {"msg": "Inativado com sucesso"}
+
+
+@router.patch("/categorias/{cat_id}/ativar", dependencies=[Depends(get_current_admin)])
+def ativar_categoria(cat_id: int, db: Session = Depends(get_db)):
+    db_cat = db.query(Categoria).filter(Categoria.id == cat_id).first()
+    if not db_cat:
+        raise HTTPException(status_code=404, detail="Não encontrado")
+    db_cat.ativo = True
+    db.commit()
+    return {"msg": "Ativado com sucesso"}
 
 
 # ==========================================
 # PRODUTOS
 # ==========================================
 @router.get("/produtos", response_model=List[ProdutoResponse])
-def listar_produtos(db: Session = Depends(get_db)):
-    return db.query(Produto).all()
+def listar_produtos(inativos: bool = False, db: Session = Depends(get_db)):
+    query = db.query(Produto)
+    if not inativos:
+        query = query.filter(Produto.ativo == True)
+    return query.all()
 
 
 @router.post(
@@ -138,12 +153,24 @@ def inativar_produto(prod_id: int, db: Session = Depends(get_db)):
     return {"msg": "Inativado com sucesso"}
 
 
+@router.patch("/produtos/{prod_id}/ativar", dependencies=[Depends(get_current_admin)])
+def ativar_produto(prod_id: int, db: Session = Depends(get_db)):
+    db_prod = db.query(Produto).filter(Produto.id == prod_id).first()
+    if db_prod:
+        db_prod.ativo = True
+        db.commit()
+    return {"msg": "Ativado com sucesso"}
+
+
 # ==========================================
 # ADICIONAIS
 # ==========================================
 @router.get("/adicionais", response_model=List[AdicionalResponse])
-def listar_adicionais(db: Session = Depends(get_db)):
-    return db.query(Adicional).all()
+def listar_adicionais(inativos: bool = False, db: Session = Depends(get_db)):
+    query = db.query(Adicional)
+    if not inativos:
+        query = query.filter(Adicional.ativo == True)
+    return query.all()
 
 
 @router.post(
@@ -171,9 +198,27 @@ def atualizar_adicional(
     if db_item:
         for k, v in item.model_dump().items():
             setattr(db_item, k, v)
-        db.commit()
-        db.refresh(db_item)
+    db.commit()
+    db.refresh(db_item)
     return db_item
+
+
+@router.delete("/adicionais/{item_id}", dependencies=[Depends(get_current_admin)])
+def inativar_adicional(item_id: int, db: Session = Depends(get_db)):
+    db_item = db.query(Adicional).filter(Adicional.id == item_id).first()
+    if db_item:
+        db_item.ativo = False
+        db.commit()
+    return {"msg": "Inativado com sucesso"}
+
+
+@router.patch("/adicionais/{item_id}/ativar", dependencies=[Depends(get_current_admin)])
+def ativar_adicional(item_id: int, db: Session = Depends(get_db)):
+    db_item = db.query(Adicional).filter(Adicional.id == item_id).first()
+    if db_item:
+        db_item.ativo = True
+        db.commit()
+    return {"msg": "Ativado com sucesso"}
 
 
 # ==========================================
